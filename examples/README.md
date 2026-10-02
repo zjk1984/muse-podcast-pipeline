@@ -9,6 +9,20 @@
   - `===BED:2===`：从此处切换背景音乐情绪（1 沉稳 / 2 紧张 / 3 轻快 / 4 温暖）
   - `===CLIP1===`：短视频原声插入点（"介绍 → 插入点 → 反应"三段式，见 `references/writing-guide.md`）
 
+## 音频示例
+
+`demo-episode.mp3`（18 秒）是 `sample-script.txt` 开场 5 句用 `tts synthesize-script` 合成的演示音频（双主持人对话），可直接在 GitHub 页面点击播放试听：
+
+```bash
+tts synthesize-script \
+  --script opener.txt \
+  --speaker 示例-女主持A=avocado_v2:MAI_01 \
+  --speaker 示例-男主持B=avocado_v2:MAI_03 \
+  --language zh --output demo-episode.mp3
+```
+
+注意：合成前先剥离 `===BED:n===` / `===CLIPn===` 这类 marker 行。
+
 ## 跑一遍质检
 
 ```bash

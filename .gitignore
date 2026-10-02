@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 *.mp3
+!examples/*.mp3
 *.bak
 *.bak-*
 cache/
