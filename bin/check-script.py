@@ -8,11 +8,29 @@
 有问题打印清单并 exit 1；通过打印"文本质检通过。"并 exit 0。
 """
 import difflib
+import json
+import os
 import re
 import sys
 
 # 注意：不用 \s（写文件链路会转义反斜杠），空白用 split()/strip() 处理
 PUNCT = '[，、。！？；：""''（）()～…—· ]'
+
+
+def _load_speakers():
+    # 说话人名单取自 bin/voices.json（与 assemble-dry.py 一致）；文件不存在时回退默认名单
+    p = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'voices.json')
+    try:
+        raw = json.load(open(p, encoding='utf-8'))
+        names = [k for k in raw.keys() if not k.startswith('_')]
+        if names:
+            return names
+    except Exception:
+        pass
+    return ['周周', '小夏', '阿飒', '悠悠', '买买提']
+
+
+SPEAKERS = _load_speakers()
 
 
 def norm(s):
@@ -29,7 +47,8 @@ def main(path):
         line = ' '.join(line.split())
         if not line:
             continue
-        m = re.match(r'^(周周|小夏|阿飒|悠悠|买买提) *([:：]) *(.*)$', line)
+        _names = '|'.join(re.escape(n) for n in sorted(SPEAKERS, key=len, reverse=True))
+        m = re.match(r'^(' + _names + r') *([:：]) *(.*)$', line)
         if not m:
             issues.append(f'L{i}: 说话人标签格式不对: {line[:30]}')
             continue

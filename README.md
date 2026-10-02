@@ -6,7 +6,7 @@
 
 ## 依赖说明（必读）
 
-本流水线**依赖 Meta muse工具**，在外部环境不可用：
+本流水线**依赖 Meta 内部工具**，在外部环境不可用：
 - `podcast-helper`（播客目录管理、TTS 合成、Spotify 同步）
 - `tts` CLI（avocado 系列音色）
 - `feed.unit_create`（动态短帖发布接口）
@@ -36,11 +36,14 @@ podcast-pipeline/
 │   ├── synth-music.py              # 合成片头/背景/片尾音乐（intro 6s / bed 96s / outro 5s）
 │   ├── voices.example.json         # 说话人→音色映射示例
 │   └── voices.json                 # （自己创建）说话人→音色映射，见下
-└── references/
+├── references/
     ├── writing-guide.md            # 播客写作指南
     ├── character-bible-template.md # 人物圣经模板＋示例人设
     ├── qa-pipeline.md              # TTS 预扫、质检、自检、ffmpeg 坑
-    └── cron-prompt-template.md     # 定时任务提示词模板（带 {{占位符}}）
+    ├── cron-prompt-template.md     # 定时任务提示词模板（带 {{占位符}}）
+└── examples/
+    ├── README.md                   # 示例说明
+    └── sample-script.txt           # 2 分钟迷你脚本：说话人标签 / bed / clip marker 格式演示
 ```
 
 ## 快速开始
@@ -50,6 +53,10 @@ podcast-pipeline/
 3. **生成音乐素材**：`python3 bin/synth-music.py` 生成 intro/bed/outro（或用自己的音乐，电平要求见 `references/qa-pipeline.md`）。
 4. **填模板**：按 `references/cron-prompt-template.md` 把 `{{占位符}}` 换成你的版块、时段、时区、节目名，得到定时任务正文。
 5. **跑流程**：按 `SKILL.md` 的 Workflow 跑 15 步；写作看 `writing-guide.md`，人设看 `character-bible-template.md`。
+
+## 示例
+
+`examples/` 里有一个 2 分钟迷你脚本 `sample-script.txt`，演示脚本格式（说话人标签、bed/clip marker），可直接拿去跑 `check-script.py` 做文本质检。
 
 ## 脱敏说明
 
