@@ -6,7 +6,7 @@
 
 ## 依赖说明（必读）
 
-本流水线**依赖 Meta 内部工具**，在外部环境不可用：
+本流水线**依赖 Meta muse工具**，在外部环境不可用：
 - `podcast-helper`（播客目录管理、TTS 合成、Spotify 同步）
 - `tts` CLI（avocado 系列音色）
 - `feed.unit_create`（动态短帖发布接口）
