@@ -1,0 +1,8 @@
+{
+  "_说明": "说话人名字 -> TTS 音色 ID 的映射。复制本文件为同目录下的 voices.json，填入你自己的音色。以下为示例（原项目的 avocado 系列音色，仅作格式参考，外部环境不可用）。",
+  "示例-女主持A": "avocado_v2:MAI_01",
+  "示例-女主持C": "avocado_v2:rumi",
+  "示例-男主持B": "avocado_v2:MAI_03",
+  "示例-男主持D": "avocado_v2:ronan",
+  "示例-飞行嘉宾": "avocado_v2:briggs"
+}

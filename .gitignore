@@ -1,0 +1,10 @@
+# 构建产物与本地缓存，不进仓库
+__pycache__/
+*.pyc
+*.mp3
+*.bak
+*.bak-*
+cache/
+prescan-audio/
+*.log
+voices.json
