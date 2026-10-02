@@ -56,7 +56,9 @@ podcast-pipeline/
 
 ## 示例
 
-`examples/` 里有一个 2 分钟迷你脚本 `sample-script.txt`，演示脚本格式（说话人标签、bed/clip marker），可直接拿去跑 `check-script.py` 做文本质检。
+`examples/` 里有：
+- `sample-script.txt`：2 分钟迷你脚本，演示脚本格式（说话人标签、bed/clip marker），可直接拿去跑 `check-script.py` 做文本质检
+- `demo-episode.mp3`：18 秒开场音频演示（双主持人对话），GitHub 页面点击即播
 
 ## 脱敏说明
 
