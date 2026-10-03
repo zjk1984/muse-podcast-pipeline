@@ -1,4 +1,4 @@
-# podcast-pipeline
+# muse-podcast-pipeline
 
 A Chinese hourly news-talk podcast production pipeline: multi-section news research → talk-show-style scriptwriting → TTS prescan QA → dry-voice assembly → mixing → publishing.
 
