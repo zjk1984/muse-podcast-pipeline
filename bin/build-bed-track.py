@@ -18,6 +18,17 @@ import tempfile
 
 ASSETS = os.path.dirname(os.path.abspath(__file__))  # bed/intro/outro 与脚本同目录
 BED_FILES = {1: "bed.mp3", 2: "bed2.mp3", 3: "bed3.mp3", 4: "bed4.mp3"}
+# 音乐套装轮换：MUSIC_PACK=v0..v6 时用 <assets>/music/$MUSIC_PACK/bed1-4.mp3；
+# 未设置或文件不存在时回退默认 bed。
+_MPACK = os.environ.get("MUSIC_PACK", "")
+
+
+def bed_path(assets_dir, n):
+    if _MPACK:
+        p = os.path.join(assets_dir, "music", _MPACK, f"bed{n}.mp3")
+        if os.path.exists(p):
+            return p
+    return os.path.join(assets_dir, BED_FILES[n])
 FADE_BED = 0.8   # bed 切换淡入淡出
 FADE_MUTE = 0.4  # 原声前后 bed 收放
 
@@ -141,9 +152,9 @@ def main():
                  "-t", f"{dur:.3f}", "-af", af,
                  "-c:a", "libmp3lame", "-b:a", "128k", p], check=True)
         else:
-            src = os.path.join(a.assets, BED_FILES[bed])
+            src = bed_path(a.assets, bed)
             if not os.path.exists(src):
-                src = os.path.join(a.assets, BED_FILES[1])
+                src = bed_path(a.assets, 1)
             fd = min(FADE_BED, dur / 2)
             af = (f"aloop=loop=-1:size=2e9,atrim=duration={dur:.3f},"
                   f"afade=t=in:st=0:d={fd:.3f},"

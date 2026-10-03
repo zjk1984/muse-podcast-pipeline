@@ -140,18 +140,17 @@ def to_mp3(x, path):
 
 
 # ---------------- 片头 6 秒 ----------------
-def make_intro():
+def make_intro(shift=0, bpm=132.0):
     dur = 6.0
     n = int(dur * SR)
     t = np.zeros(n)
-    bpm = 132.0
     beat = 60.0 / bpm
     eighth = beat / 2
 
     # 0.0 强起拍 logo
     place(t, kick(int(0.3 * SR)), 0.0)
     place(t, crash(int(1.2 * SR)) * 0.7, 0.0)
-    stab = sum(saw(midi(m), int(0.5 * SR)) for m in (57, 60, 64)) / 3
+    stab = sum(saw(midi(m + shift), int(0.5 * SR)) for m in (57, 60, 64)) / 3
     place(t, lowpass(stab, 2500) * env_ad(int(0.5 * SR), 0.005, 0.4) * 0.8, 0.0)
 
     # 0.2–3.6 groove：kick 四拍、反拍 hat、2/4 拍 clap
@@ -162,15 +161,15 @@ def make_intro():
         place(t, hat(int(0.05 * SR)) * 0.35, bt + eighth)
         if b % 4 == 1 or b % 4 == 3:
             place(t, clap(int(0.2 * SR)) * 0.6, bt)
-    # bass 8 分音符：A1 x4, F1 x4
+    # bass 8 分音符
     for i in range(16):
         bt = 0.2 + i * eighth
-        root = 33 if i < 8 else 29  # A1 / F1
+        root = (33 if i < 8 else 29) + shift
         bl = int(0.19 * SR)
         b = lowpass(saw(midi(root), bl), 500) * env_ad(bl, 0.005, 0.15) * 0.55
         place(t, b, bt)
     # lead 动机（新闻感上扬乐句）
-    motif = [69, 76, 79, 81, 84, 83, 81, 79]  # A4 E5 G5 A5 C6 B5 A5 G5
+    motif = [m + shift for m in (69, 76, 79, 81, 84, 83, 81, 79)]
     for i, m in enumerate(motif):
         bt = 0.2 + i * eighth
         ln = int(0.21 * SR)
@@ -182,11 +181,11 @@ def make_intro():
     for i in range(6):
         place(t, clap(int(0.12 * SR)) * (0.3 + 0.1 * i), 3.8 + i * 0.115)
 
-    # 4.55 最终 logo hit：大鼓 + crash + Am 和弦 sustain
+    # 4.55 最终 logo hit：大鼓 + crash + 和弦 sustain
     place(t, kick(int(0.4 * SR)) * 1.0, 4.55)
     place(t, crash(int(1.4 * SR)) * 0.8, 4.55)
     chn = int(1.4 * SR)
-    chord = sum(saw(midi(m), chn) for m in (57, 60, 64, 69)) / 4
+    chord = sum(saw(midi(m + shift), chn) for m in (57, 60, 64, 69)) / 4
     chord = lowpass(chord, 2800) * env_ad(chn, 0.01, 1.2) * 0.85
     chord = simple_verb(chord)
     place(t, chord, 4.55)
@@ -200,7 +199,7 @@ def make_intro():
 
 # ---------------- 背景 96 秒无缝循环 ----------------
 def make_bed(chords=None, arp_notes=None, arp_step=0.3, arp_gain=0.10,
-             lp_cutoff=750, level_db=-35.0):
+             lp_cutoff=750, level_db=-35.0, transpose=0):
     block = 8.0
     if chords is None:
         chords = [  # Am F C G x3 = 96s（默认沉稳新闻垫）
@@ -208,6 +207,9 @@ def make_bed(chords=None, arp_notes=None, arp_step=0.3, arp_gain=0.10,
         ] * 3
     if arp_notes is None:
         arp_notes = [69, 72, 74, 76, 79, 81, 79, 76, 74, 72]
+    if transpose:
+        chords = [tuple(m + transpose for m in ch) for ch in chords]
+        arp_notes = [m + transpose for m in arp_notes]
     total = block * len(chords)
     # 多渲染 2 秒：让最后一块和弦的 release 包络绕回到开头，保证无缝循环
     n = int((total + 2.0) * SR)
@@ -355,15 +357,15 @@ def make_outro():
     return t
 
 
-def make_outro_5():
+def make_outro_5(shift=0):
     dur = 5.0
     n = int(dur * SR)
     t = np.zeros(n)
 
-    # 温暖 pad：Am，0–3.4s
+    # 温暖 pad：0–3.4s
     bn = int(3.4 * SR)
     pad = np.zeros(bn)
-    for m in (57, 60, 64):
+    for m in (57 + shift, 60 + shift, 64 + shift):
         for octv in (0, 12):
             pad += saw(midi(m + octv), bn, detune_cents=(0, 6, -6))
     pad = pad / 6
@@ -377,18 +379,18 @@ def make_outro_5():
     # 根音贝斯（正弦，柔和）
     bl = int(3.0 * SR)
     bt = np.arange(bl) / SR
-    bass = np.sin(2 * np.pi * midi(57 - 24) * bt) * env_ad(bl, 0.05, 2.8) * 0.30
+    bass = np.sin(2 * np.pi * midi(57 + shift - 24) * bt) * env_ad(bl, 0.05, 2.8) * 0.30
     place(t, lowpass(bass, 300), 0.2)
 
     # 动机陈述（缩短版）：0.5s 起
-    motif = [69, 76, 79, 81, 84, 81, 79]
+    motif = [m + shift for m in (69, 76, 79, 81, 84, 81, 79)]
     for i, m in enumerate(motif):
         ln = int(0.6 * SR)
         place(t, piano_note(midi(m), ln), 0.5 + i * 0.42)
 
-    # 收束：2.6s 起 logo 和弦 Am(add9)
+    # 收束：2.6s 起 logo 和弦
     chn = int(2.4 * SR)
-    chord = sum(saw(midi(m), chn) for m in (45, 57, 60, 64, 71)) / 5
+    chord = sum(saw(midi(m + shift), chn) for m in (45, 57, 60, 64, 71)) / 5
     chord = lowpass(chord, 2200) * env_ad(chn, 0.02, 2.2) * 0.7
     chord = simple_verb(chord)
     place(t, chord, 2.6)
@@ -407,15 +409,15 @@ def make_outro_5():
 # ---------------- 片尾 10 秒（短版） ----------------
 # 新闻播客式短片尾：温暖 pad（Am）＋动机陈述一次（柔和钢琴）＋收束 logo 和弦，
 # 末 2.5s 淡出到静音。接在正片后、推荐歌曲前。
-def make_outro_short():
+def make_outro_short(shift=0):
     dur = 10.0
     n = int(dur * SR)
     t = np.zeros(n)
 
-    # 温暖 pad：Am，0–7s
+    # 温暖 pad：0–7s
     bn = int(7.5 * SR)
     pad = np.zeros(bn)
-    for m in (57, 60, 64):
+    for m in (57 + shift, 60 + shift, 64 + shift):
         for octv in (0, 12):
             pad += saw(midi(m + octv), bn, detune_cents=(0, 6, -6))
     pad = pad / 6
@@ -429,18 +431,18 @@ def make_outro_short():
     # 根音贝斯（正弦，柔和）
     bl = int(7.0 * SR)
     bt = np.arange(bl) / SR
-    bass = np.sin(2 * np.pi * midi(57 - 24) * bt) * env_ad(bl, 0.05, 6.5) * 0.30
+    bass = np.sin(2 * np.pi * midi(57 + shift - 24) * bt) * env_ad(bl, 0.05, 6.5) * 0.30
     place(t, lowpass(bass, 300), 0.3)
 
     # 动机陈述一次：0.8s 起（片头的上扬乐句，慢速柔和）
-    motif = [69, 76, 79, 81, 84, 83, 81, 79]
+    motif = [m + shift for m in (69, 76, 79, 81, 84, 83, 81, 79)]
     for i, m in enumerate(motif):
         ln = int(0.9 * SR)
         place(t, piano_note(midi(m), ln), 0.8 + i * 0.62)
 
-    # 收束：6.8s 起 logo 和弦 Am(add9)
+    # 收束：6.8s 起 logo 和弦
     chn = int(3.2 * SR)
-    chord = sum(saw(midi(m), chn) for m in (45, 57, 60, 64, 71)) / 5
+    chord = sum(saw(midi(m + shift), chn) for m in (45, 57, 60, 64, 71)) / 5
     chord = lowpass(chord, 2200) * env_ad(chn, 0.02, 3.0) * 0.7
     chord = simple_verb(chord)
     place(t, chord, 6.8)
@@ -456,9 +458,47 @@ def make_outro_short():
     return t
 
 
+# ---------------- 音乐套装（每期轮换，7 套 v0–v6） ----------------
+# 每套 = intro 6s + outro 5s + bed1–4（96s 无缝循环）。
+# 变体维度：整体转调（半音位移）+ 片头 BPM 微调；结构、时长、电平与原版严格一致
+#（intro peak -3dB / bed 均值 -35dB / outro 均值 -30dB），混音脚本的淡入淡出时序不用改。
+MUSIC_VARIANTS = [  # (半音位移, bpm)
+    (0, 132), (3, 128), (5, 136), (-2, 130), (7, 134), (-4, 126), (2, 138),
+]
+# bed 四种情绪的基础配置：(和弦进行, arp 音符, arp_step, arp_gain, lp_cutoff)
+BED_BASE = {
+    1: ([(57, 60, 64), (53, 57, 60), (48, 52, 55), (55, 59, 62)] * 3,
+        [69, 72, 74, 76, 79, 81, 79, 76, 74, 72], 0.30, 0.10, 750),
+    2: ([(57, 60, 64), (57, 60, 64), (53, 57, 60), (52, 56, 59)] * 3,
+        [57, 60, 62, 64, 67, 69, 67, 64, 62, 60], 0.45, 0.05, 600),
+    3: ([(48, 52, 55), (55, 59, 62), (57, 60, 64), (53, 57, 60)] * 3,
+        [69, 72, 74, 76, 79, 81, 79, 76, 74, 72], 0.25, 0.11, 950),
+    4: ([(53, 57, 60), (48, 52, 55), (55, 59, 62), (57, 60, 64)] * 3,
+        [65, 69, 72, 74, 76, 79, 76, 74, 72, 69], 0.35, 0.08, 700),
+}
+
+
+def make_musicpacks(outdir=None):
+    """生成 7 套音乐，写入 assets/music/v0..v6/。"""
+    import os
+    base = outdir or os.path.join(os.path.dirname(os.path.abspath(__file__)), "music")
+    for v, (shift, bpm) in enumerate(MUSIC_VARIANTS):
+        d = os.path.join(base, f"v{v}")
+        os.makedirs(d, exist_ok=True)
+        to_mp3(make_intro(shift=shift, bpm=bpm), os.path.join(d, "intro.mp3"))
+        to_mp3(make_outro_5(shift=shift), os.path.join(d, "outro.mp3"))
+        for mood, (chords, arp, step, gain, lp) in BED_BASE.items():
+            to_mp3(make_bed(chords=chords, arp_notes=arp, arp_step=step,
+                            arp_gain=gain, lp_cutoff=lp, transpose=shift),
+                   os.path.join(d, f"bed{mood}.mp3"))
+        print(f"done: {d}/ (intro/outro/bed1-4)")
+
+
 if __name__ == "__main__":
     import sys
-    if len(sys.argv) > 1 and sys.argv[1] == "variants":
+    if len(sys.argv) > 1 and sys.argv[1] == "musicpacks":
+        make_musicpacks()
+    elif len(sys.argv) > 1 and sys.argv[1] == "variants":
         make_bed_variants()
     elif len(sys.argv) > 1 and sys.argv[1] == "outro10":
         outro10 = make_outro_short()
