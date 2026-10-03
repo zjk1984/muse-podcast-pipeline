@@ -7,6 +7,9 @@ Every hour produces two things: a batch of multi-section news briefs, and one mu
 > 中文版说明请见 [README.md](README.md)。
 
 ## Dependencies (read first)
+It runs on Muse, my AI assistant app. New users, enter my invite code:
+🎟️ XWRB26
+(App Settings → Redeem token)
 
 This pipeline **depends on Meta-internal tools** that are unavailable outside Meta:
 - `podcast-helper` (podcast catalog management, TTS synthesis, Spotify sync)
