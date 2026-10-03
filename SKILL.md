@@ -29,9 +29,9 @@ description: "中文定时新闻播客生产流水线：多版块调研→脱口
 
 3b. **慢频短帖**（仅 H=8、12、18）：另发数码、本地、旅行出行、科技深读、新能源汽车、航天科学 6 篇，同样先读 log 去重。
 
-4. **选片尾推荐歌**：`yt-dlp "ytsearch8:<时段 query> official audio"` 搜 YouTube 官方原版（优先 VEVO/官方/-Topic，跳过现场/翻唱/合集；中文人声优先），`youtube-songs.log` 去重 video id。搜不到就跳过，不阻塞。
+4. **选片尾推荐歌**（必备项，下载不到就换一首）：`yt-dlp "ytsearch8:<时段 query> official audio"` 搜 YouTube 官方原版（优先 VEVO/官方/-Topic，跳过现场/翻唱/合集；中文人声优先），`youtube-songs.log` 去重 video id；按规则排序取前 3 名候选（搜索失败换 query 再搜一次）。两次搜索都失败才跳过此步，不阻塞。
 
-4b. **选歌后立刻下载**：写稿前必须拿到音频才知道有没有歌可播。`--extractor-args "youtube:player_client=android"` 下载，遇 bot-check 换 `tv_embedded`，仍失败 sleep 90s 后最后重试一次；三次失败记"本期无歌"。
+4b. **选歌后立刻下载**：写稿前必须拿到音频才知道有没有歌可播。对 3 个候选依次尝试：`--extractor-args "youtube:player_client=android"` 下载，遇 bot-check 换 `tv_embedded` 重试，仍失败 sleep 90s 后用 android 最后重试一次；单首三次失败换下一首。3 首全失败 → 换 query 重搜一轮再试 3 首；两轮共 6 首全失败才记"本期无歌"。去重 log 只写最终下载成功、实际播出的那首，失败换掉的不写。
 
 5. **选主持人**：看本期重点版块，选主场对口的 2–4 位登场（每人认领 1–2 个主场版块）；每期换人、男女声搭配。飞行嘉宾按"登场三原则"（登场动机/深度话题/话题钩子）现编人设，名字贴合身份与动机。详见 `references/character-bible-template.md`。
 
@@ -39,7 +39,7 @@ description: "中文定时新闻播客生产流水线：多版块调研→脱口
 
 6b. **TTS 预扫**：`bin/prescan-chunks.py` 逐行合成并做 4 项检查——截断（576 字节类）、异常安静（比该说话人正常水平低 6dB 以上）、时长异常（超估算 1.6 倍且多出 3 秒以上，疑似循环重复）、句内长静音（≥2.5 秒，疑似停顿注入）。报出的问题行只能改写（换同义词/拆短句/英文换中文），重生成修不好；通过后不要再改脚本文本（预扫缓存直接用于组装）。阈值由来见 `references/qa-pipeline.md`。
 
-7. **短视频原声**：读 `clip-urls.json`；每条 yt-dlp 下载完整音频 → 定高潮段（视频简介/评论区时间戳优先，否则 `bin/find-climax.py` 能量检测取 45 秒最高能量段，不足 45 秒全播）→ `ffmpeg -ss/-to`（放 `-i` 之前）截取并 `loudnorm` 到 -20 LUFS。失败跳过该条。
+7. **短视频原声**：读 `clip-urls.json`（每条必填 `mode`：`event`=夺冠/颁奖/欢呼/搞笑包袱/采访、`music`=副歌/演唱/演奏）；每条 yt-dlp 下载完整音频 → 定高潮段（简介/评论区时间戳优先写入 start/end，否则 `bin/find-climax.py --mode <mode>` 自动定位：music 取能量最高连续段，event 用"能量×噪度"定位现场声并跳过前 10 秒片头 BGM；不足 45 秒全播）→ `ffmpeg -ss/-to`（放 `-i` 之前）截取并 `loudnorm` 到 -20 LUFS。失败跳过该条。
 
 8. **干声组装**：`bin/assemble-dry.py` 按 `key=sha256("voice_id|文本")[:16]` 查预扫缓存，逐行电平补偿（本期中位数目标、±6dB 封顶）、每段首尾 8ms 淡化防咔哒、在插入点拼 clip，输出干声 mp3＋行时间线。缺失缓存先重跑预扫补齐。
 
