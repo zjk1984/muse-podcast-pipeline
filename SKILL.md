@@ -29,9 +29,9 @@ description: "中文定时新闻播客生产流水线：多版块调研→脱口
 
 3b. **慢频短帖**（仅 H=8、12、18）：另发数码、本地、旅行出行、科技深读、新能源汽车、航天科学 6 篇，同样先读 log 去重。
 
-4. **选片尾推荐歌**（必备项，下载不到就换一首）：`yt-dlp "ytsearch8:<时段 query> official audio"` 搜 YouTube 官方原版（优先 VEVO/官方/-Topic，跳过现场/翻唱/合集；中文人声优先），`youtube-songs.log` 去重 video id；按规则排序取前 3 名候选（搜索失败换 query 再搜一次）。两次搜索都失败才跳过此步，不阻塞。
+4. **选片尾推荐歌**（必备项，下载不到就换一首；新歌优先、近 4 期歌手不重复）：搜 YouTube（官方原版或现场 live 版均可，仍要求官方渠道）。先用 `bin/fresh-song-from-spotify.py` 从每日新歌歌单取新鲜候选（非 explicit、中文优先），不足 6 首用 24-query 池（情绪/场景/语种细分，`((date +%j - 1) * 4 + (H-8)/4) % 24` 轮换）补足；`bin/rank-song-candidates.py` 排序：跳过已用 video id、近 4 期歌手、坏标题和非官方渠道，按"每日新歌源 ＞ 近 2 年上传的新歌 ＞ 热度（播放量＋点赞×10＋评论×50）＞ 中文人声优先"取前 3 名。去重 `youtube-songs.log`（新格式追加歌手字段）。
 
-4b. **选歌后立刻下载**：写稿前必须拿到音频才知道有没有歌可播。对 3 个候选依次尝试：`--extractor-args "youtube:player_client=android"` 下载，遇 bot-check 换 `tv_embedded` 重试，仍失败 sleep 90s 后用 android 最后重试一次；单首三次失败换下一首。3 首全失败 → 换 query 重搜一轮再试 3 首；两轮共 6 首全失败才记"本期无歌"。去重 log 只写最终下载成功、实际播出的那首，失败换掉的不写。
+4b. **选歌后立刻下载**：写稿前必须拿到音频才知道有没有歌可播。对 3 个候选依次尝试：`--extractor-args "youtube:player_client=android"` 下载，遇 bot-check 换 `tv_embedded` 重试，仍失败 sleep 90s 后用 android 最后重试一次；单首三次失败换下一首（同样遵守 id＋歌手去重）。3 首全失败 → 换 query 重搜一轮再试 3 首；两轮共 6 首全失败才记"本期无歌"。去重 log 只写最终下载成功、实际播出的那首，失败换掉的不写。
 
 5. **选主持人**：看本期重点版块，选主场对口的 2–4 位登场（每人认领 1–2 个主场版块）；每期换人、男女声搭配。飞行嘉宾按"登场三原则"（登场动机/深度话题/话题钩子）现编人设，名字贴合身份与动机。详见 `references/character-bible-template.md`。
 

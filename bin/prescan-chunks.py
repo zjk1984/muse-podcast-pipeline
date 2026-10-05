@@ -26,6 +26,10 @@ TTS 对同一文本的输出是确定性的——某行合成出来是截断/特
    注入或把句子切碎（2026-10-01 实测：小夏一句 30 字合成出 2.7 秒语音
    + 8.5 秒尾部静音，时长比 1.67x、音量只低 5dB，两项检查都漏过，
    RSS 里 4:13–4:20 整整 7 秒没对白），需改写。
+5. 多音字（纯文本检查，不合成）：TTS 按文本原样合成，无注音/词典干预，
+   输出确定性——误读只能在写稿端改写成无歧义的词来修，重生成修不好。
+   命中 POLYPHONES watchlist 即 flag，按建议改写。
+   （实测：某期"下午这觉睡得"/"睡午觉"被读成 jué，应为 jiào。）
 
 缓存：(voice, text) 的合成结果缓存在 prescan-cache.json（7 天有效），
 改写后重跑只测改过的行。
@@ -61,6 +65,24 @@ DUR_RATIO = 1.6  # 实际时长超过期望 1.6 倍且多出 3 秒以上，视�
 #  改用 expected_dur() 按中英分别估算后真值约 2.3x，1.6x 可靠拦截。
 #  全期 152 行实测：除该行 1.69x（新估算 2.24x）外最高仅 1.42x，阈值 1.6 有裕量。）
 MAX_SILENCE = 2.5  # 单行音频里单段静音 ≥2.5 秒，视为 TTS 停顿注入/切碎
+# 5. 多音字 watchlist：(正则, 正确读音, 改写建议)
+#    TTS 按文本原样合成、无注音干预，误读确定性复现，只能改写修复。
+#    实测：某期"这觉/睡午觉"被读成 jué（应 jiào）。
+POLYPHONES = [
+    (r"睡觉", "shuìjiào", "改「睡了/歇着/去睡了」（按语境）"),
+    (r"睡午觉|午觉", "wǔjiào", "改「午睡」"),
+    (r"这觉|那觉|一觉|补觉|回笼觉|睡懒觉", "jiào", "避开「觉」字改写，如「睡得太香了」「补了个眠」「赖床」"),
+    (r"睡着", "shuìzháo", "改「睡熟了/睡过去了」"),
+    (r"你得|我得|他得|她得|咱们得|可得|非得", "děi", "「得」表必须时读 děi，易误读 dé，改「必须/一定要」"),
+    (r"一行人|行家|同行", "háng", "改「一伙人/内行/一起的」"),
+    (r"差不多", "chàbuduō", "改「约莫/八九不离十」"),
+    (r"差点", "chàdiǎn", "改「险些」"),
+    (r"便宜", "piányi", "改「划算」"),
+    (r"倒闭", "dǎobì", "改「关门/黄了」"),
+    (r"打扫", "dǎsǎo", "改「收拾」"),
+    (r"爱好", "àihào", "改「喜欢……」"),
+    (r"埋单", "máidān", "改「买单」"),
+]
 TTS_TIMEOUT = 90  # 单行合成超时（秒），防 hang
 FF_TIMEOUT = 30
 RETRIES = 2  # 瞬态失败重试次数（576 字节确定性截断不重试）
@@ -184,6 +206,20 @@ def median(xs):
     return xs[n // 2] if n % 2 else (xs[n // 2 - 1] + xs[n // 2]) / 2
 
 
+def check_polyphones(rows):
+    """纯文本多音字预检：返回 [(lineno, speaker, text, reason)]。
+    TTS 无注音干预，误读只能改写修复；一行只报第一条命中。"""
+    hits = []
+    for lineno, speaker, text in rows:
+        for pat, reading, fix in POLYPHONES:
+            m = re.search(pat, text)
+            if m:
+                hits.append((lineno, speaker, text,
+                             f"多音字「{m.group(0)}」应读 {reading}：{fix}"))
+                break
+    return hits
+
+
 def silence_gaps(mp3):
     """返回行音频里的静音段 [(start, end, dur)]（阈值 -45dB，≥1.0 秒才记录）。"""
     out, _ = run(
@@ -232,6 +268,13 @@ def main():
     if not rows:
         print("脚本里没有可解析的台词行")
         return 2
+    # 第 5 项：多音字纯文本预检（不合成，先报出来）
+    poly_bad = check_polyphones(rows)
+    if poly_bad:
+        print(f"多音字预检：{len(poly_bad)} 行含易错多音字"
+              "（TTS 无注音干预，误读只能改写修复）：")
+        for lineno, sp, text, reason in poly_bad:
+            print(f" - L{lineno} [{sp}] {reason}: {text[:50]}")
     cache = load_cache()
     lock = threading.Lock()
     tmpd = tempfile.mkdtemp(prefix="prescan-")
@@ -357,7 +400,8 @@ def main():
                 if r:
                     bad.append(r)
 
-    bad.sort(key=lambda b: b[0])
+    # 多音字问题并入最终清单（纯文本检查，不依赖合成）
+    bad = sorted(poly_bad + bad, key=lambda b: b[0])
     if not bad:
         print("预扫通过。")
         return 0
