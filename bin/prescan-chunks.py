@@ -30,6 +30,10 @@ TTS 对同一文本的输出是确定性的——某行合成出来是截断/特
    输出确定性——误读只能在写稿端改写成无歧义的词来修，重生成修不好。
    命中 POLYPHONES watchlist 即 flag，按建议改写。
    （实测：某期"下午这觉睡得"/"睡午觉"被读成 jué，应为 jiào。）
+6. 触发词（纯文本检查，不合成）：特定词会确定性触发 TTS 循环/停顿注入，
+   预扫合成前先文本拦截，避免浪费合成轮次返工。命中 TRIGGER_WORDS
+   即 flag，按建议改写。
+   （实测：某期台词中"算力额度"多次触发，改写多轮才绕过。）
 
 缓存：(voice, text) 的合成结果缓存在 prescan-cache.json（7 天有效），
 改写后重跑只测改过的行。
@@ -82,6 +86,13 @@ POLYPHONES = [
     (r"打扫", "dǎsǎo", "改「收拾」"),
     (r"爱好", "àihào", "改「喜欢……」"),
     (r"埋单", "máidān", "改「买单」"),
+]
+# 6. 触发词 watchlist：(正则, 故障, 改写建议)——与多音字无关，是特定词
+#    确定性触发 TTS 循环/停顿注入；独立列表，不要混入 POLYPHONES。
+#    实测："算力额度"多次触发 TTS 循环/停顿注入，改写多轮才绕过。
+TRIGGER_WORDS = [
+    (r"算力额度", "易触发 TTS 循环/停顿注入",
+     "改「掏钱又掏算力」"),
 ]
 TTS_TIMEOUT = 90  # 单行合成超时（秒），防 hang
 FF_TIMEOUT = 30
@@ -220,6 +231,20 @@ def check_polyphones(rows):
     return hits
 
 
+def check_trigger_words(rows):
+    """触发词纯文本预检：返回 [(lineno, speaker, text, reason)]。
+    特定词确定性触发 TTS 循环/停顿注入，合成前文本拦截改写；一行只报第一条命中。"""
+    hits = []
+    for lineno, speaker, text in rows:
+        for pat, fault, fix in TRIGGER_WORDS:
+            m = re.search(pat, text)
+            if m:
+                hits.append((lineno, speaker, text,
+                             f"触发词「{m.group(0)}」：{fault}，{fix}"))
+                break
+    return hits
+
+
 def silence_gaps(mp3):
     """返回行音频里的静音段 [(start, end, dur)]（阈值 -45dB，≥1.0 秒才记录）。"""
     out, _ = run(
@@ -274,6 +299,13 @@ def main():
         print(f"多音字预检：{len(poly_bad)} 行含易错多音字"
               "（TTS 无注音干预，误读只能改写修复）：")
         for lineno, sp, text, reason in poly_bad:
+            print(f" - L{lineno} [{sp}] {reason}: {text[:50]}")
+    # 第 6 项：触发词纯文本预检（不合成，先报出来）
+    trig_bad = check_trigger_words(rows)
+    if trig_bad:
+        print(f"触发词预检：{len(trig_bad)} 行含高危触发词"
+              "（确定性触发 TTS 循环/停顿注入，只能改写修复）：")
+        for lineno, sp, text, reason in trig_bad:
             print(f" - L{lineno} [{sp}] {reason}: {text[:50]}")
     cache = load_cache()
     lock = threading.Lock()
@@ -402,6 +434,8 @@ def main():
 
     # 多音字问题并入最终清单（纯文本检查，不依赖合成）
     bad = sorted(poly_bad + bad, key=lambda b: b[0])
+    # 触发词问题并入最终清单（纯文本检查，不依赖合成）
+    bad = sorted(trig_bad + bad, key=lambda b: b[0])
     if not bad:
         print("预扫通过。")
         return 0
