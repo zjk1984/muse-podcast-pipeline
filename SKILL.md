@@ -1,8 +1,3 @@
----
-name: "podcast-pipeline"
-description: "中文定时新闻播客生产流水线：多版块调研→脱口秀式写稿→TTS 预扫质检→干声组装→混音→发布。"
----
-
 # Podcast Pipeline
 
 ## Purpose
@@ -21,9 +16,9 @@ description: "中文定时新闻播客生产流水线：多版块调研→脱口
 
 15 步精简版。每步 2–4 行讲清输入输出；写作规则见 `references/writing-guide.md`，人设见 `references/character-bible-template.md`，质检见 `references/qa-pipeline.md`，可直接套用的定时任务提示词模板见 `references/cron-prompt-template.md`。
 
-1. **期号判定**：以任务的计划触发时间（`scheduled_for_local`）取小时 H，不用实际开工的墙钟时间。工作日只在 6/12/18 执行，非工作日只在 6:00–20:00 的偶数整点执行，其他时间直接结束、不发帖、不汇报。
+1. **期号判定**：以任务的计划触发时间（`scheduled_for_local`）取小时 H，不用实际开工的墙钟时间。工作日与非工作日均只在 6/12/18 执行，其他时间直接结束、不发帖、不汇报。
 
-2. **去重＋并行调研**：先读 `topics.log` 最后 20 行作去重清单；按 H 确定新闻时间窗口（早间首播覆盖整夜，其余覆盖过去 2 小时）。起 3 个并行调研子代理分组负责——A 新闻线（新闻财经/社媒热搜/可选旅游）、B 技术线（科技 AI/GitHub/游戏）、C 文娱线（音乐/影视综艺/动漫）。每个版块分"核心源"（每期必查）和"扩展源"（轮换：`S = (一年中第几天 + H) % 扩展源个数`，高频版块取 2 个、慢频取 1 个）；快讯源抓突发、观点源只取独家角度；中外配比、付费墙、单源上限见模板。输出：每版块 3–5 条（标题＋真实链接＋入选理由）。
+2. **去重＋并行调研**：先读 `topics.log` 最后 20 行作去重清单；按 H 确定新闻时间窗口（早间首播覆盖整夜，其余覆盖过去 2 小时）。起 3 个并行调研子代理分组负责——A 新闻线（新闻财经/社媒热搜/可选旅游）、B 技术线（科技 AI/GitHub/游戏）、C 文娱线（音乐/影视综艺/足球和体育趣闻）。每个版块分"核心源"（每期必查）和"扩展源"（轮换：`S = (一年中第几天 + H) % 扩展源个数`，高频版块取 2 个、慢频取 1 个）；快讯源抓突发、观点源只取独家角度；中外配比、付费墙、单源上限见模板。输出：每版块 3–5 条（标题＋真实链接＋入选理由）。
 
 3. **发高频短帖**：按版块逐篇发中文短帖，每篇 3–5 条（早间首播可 5–8 条），语气简洁口语，每条带真实链接（禁止编造 URL）。
 
@@ -31,7 +26,7 @@ description: "中文定时新闻播客生产流水线：多版块调研→脱口
 
 4. **选片尾推荐歌**（必备项，下载不到就换一首；新歌优先、近 4 期歌手不重复）：搜 YouTube（官方原版或现场 live 版均可，仍要求官方渠道）。先用 `bin/fresh-song-from-spotify.py` 从每日新歌歌单取新鲜候选（非 explicit、中文优先），不足 6 首用 24-query 池（情绪/场景/语种细分，`((date +%j - 1) * 4 + (H-8)/4) % 24` 轮换）补足；`bin/rank-song-candidates.py` 排序：跳过已用 video id、近 4 期歌手、坏标题和非官方渠道，按"每日新歌源 ＞ 近 2 年上传的新歌 ＞ 热度（播放量＋点赞×10＋评论×50）＞ 中文人声优先"取前 3 名。去重 `youtube-songs.log`（新格式追加歌手字段）。
 
-4b. **选歌后立刻下载**：写稿前必须拿到音频才知道有没有歌可播。对 3 个候选依次尝试：`--extractor-args "youtube:player_client=android"` 下载，遇 bot-check 换 `tv_embedded` 重试，仍失败 sleep 90s 后用 android 最后重试一次；单首三次失败换下一首（同样遵守 id＋歌手去重）。3 首全失败 → 换 query 重搜一轮再试 3 首；两轮共 6 首全失败才记"本期无歌"。去重 log 只写最终下载成功、实际播出的那首，失败换掉的不写。
+4b. **选歌后立刻下载**：下载放后台与写稿并行（2026-10-14 Jack 定），不等下载完成、直接进写稿；写到结尾前检查下载结果，再定结尾写法（有歌则写 DJ 介绍＋收尾句式，无歌则一句话带过）。对 3 个候选依次尝试：`--extractor-args "youtube:player_client=android"` 下载，遇 bot-check 换 `tv_embedded` 重试，仍失败 sleep 90s 后用 android 最后重试一次；单首三次失败换下一首（同样遵守 id＋歌手去重）。3 首全失败 → 换 query 重搜一轮再试 3 首；两轮共 6 首全失败才记"本期无歌"。去重 log 只写最终下载成功、实际播出的那首，失败换掉的不写。
 
 5. **选主持人**：看本期重点版块，选主场对口的 2–4 位登场（每人认领 1–2 个主场版块）；每期换人、男女声搭配。飞行嘉宾按"登场三原则"（登场动机/深度话题/话题钩子）现编人设，名字贴合身份与动机。详见 `references/character-bible-template.md`。
 
@@ -55,7 +50,7 @@ description: "中文定时新闻播客生产流水线：多版块调研→脱口
 
 12. **（已取消）**：不再上传、不再生成公开链接，跳过。
 
-13. **发布**：把混音版记入播客目录（manifest），同步到播客托管（原项目用 `podcast-helper save-to-spotify` 同步到 Spotify 节目）；等 READY 最多 5 分钟，超时不阻塞。内部 ID（如 `spotify:show`/`spotify:episode`）绝不出现在文案里。
+13. **发布**：把混音版记入播客目录（manifest），同步到播客托管（原项目用 `podcast-helper save-to-spotify` 同步到 Spotify 节目）；等 READY 最多 90 秒（2026-10-14 Jack 定，原 5 分钟），超时不阻塞。确认方式：`spotify-api experience --id spotify:show:<id>` 看该期 episode 带 PLAYABLE trait 且时长对上（`episodes status --wait` 不存在，不要用）。上传返回 ok 不等于 READY：readiness FAILED 时重编码一份干净文件、换新 slug 重传（save-to-spotify 对已有 URI 的 slug 直接返回旧值）。内部 ID（如 `spotify:show`/`spotify:episode`）绝不出现在文案里。
 
 14. **发语音版帖**：一句话概括各版块＋完整版收听入口＋片尾推荐歌（有歌/无歌两种写法，无歌不许承诺"完整版播完别走开"）。
 
@@ -80,3 +75,10 @@ description: "中文定时新闻播客生产流水线：多版块调研→脱口
 5. **长静音修法**：先预扫拦截改写；已组装的干声用 `silenceremove` 收紧（句读停顿 <1 秒保留），不要反复重生成。拼接点 8ms 淡化防咔哒声。
 6. **音量**：逐行电平补偿±6dB 封顶；背景音乐 ducking；终混 -16 LUFS。RSS/托管音频链路无法做归一化——电平问题只能在生成前解决。
 7. **脱敏**：对外发布前，内部 ID、真实行程、私人路径一律剥离；脚本里的说话人名字与音色走 `bin/voices.json` 配置，不硬编码。
+8. **单帖超时不手动补发**：某版块短帖超时失败时记原因跳过，不手动补发；下一期同版块的新内容＋去重机制可能覆盖缺失版块，但必须等下一期成功后核实该版块确实已发布，未核实不得视为已覆盖。
+
+## Available connectors
+
+- Use `muse.connector_search` to find other connectors and `muse.skill_search` to find related skills.
+
+- If nothing here fits, look on the web for a maintained API or MCP server and set it up with [Custom Connectors and MCPs](/opt/muse/skills/custom-connector-setup/SKILL.md), or build a custom connector.
